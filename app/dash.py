@@ -1,6 +1,6 @@
-import dash
-from dash import dcc
-from dash import html
+import app.dash as dash
+from app.dash import dcc
+from app.dash import html
 from dash.dependencies import Input, Output
 import plotly.graph_objects as go
 
