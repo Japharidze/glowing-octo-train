@@ -1,8 +1,11 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+
 
 # Globals
 db = SQLAlchemy()
+migrate = Migrate()
 
 def init_app():
     """Initialize the core app"""
@@ -11,9 +14,7 @@ def init_app():
 
     # Plugins
     db.init_app(app)
-
-    # Run the BOT
-    # Here
+    migrate.init_app(app, db)
 
     with app.app_context():
         from . import routes

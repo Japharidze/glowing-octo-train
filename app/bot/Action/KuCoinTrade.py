@@ -3,9 +3,10 @@ import time
 from decimal import Decimal
 
 from threading import Thread
+
 from kucoin.client import Trade, Market, User
 from app.bot.Data.KucoinSymbols import load_kucoin_binance_symbols
-from pprint import pprint
+from app.bot.crud import insert_trade, insert_tp, update_coin
 
 
 class MarketAction(Thread):
@@ -97,7 +98,12 @@ class MarketAction(Thread):
                         break
                     time.sleep(0.5)
                 self.buy_order_id = order_id
+                # update_coin()
+                # insert_trade()
             elif side == 'sell':
+                # update_coin()
+                # insert_trade()
+                # insert_tp()
                 logging.info(f'Trade Complete! Symbol: {self.symbol}, pair_order_ids: buy: {self.buy_order_id}, sell: {order_id}')
                 self.buy_order_id = ''
                 self.trade_amount = '0'
