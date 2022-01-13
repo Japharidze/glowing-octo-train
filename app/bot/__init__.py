@@ -9,7 +9,6 @@ from app.bot.crud import get_coins  # TODO: change to relative path
 def run_bot():
     config_path = 'app/bot/config_GR.json'
     config = load_config_file(config_path)
-    # symbol_csv = load_kucoin_binance_symbols(config)
 
     # TODO: change info to something more robust for accessing threads
     info = dict()
@@ -20,14 +19,10 @@ def run_bot():
     for coin in coin_list:
         try:
             if coin.allow_trade:
-                config['symbol'] = coin.binance_name  # Set different symbols
-                stream = BinanceDataStream(config)
+                stream = BinanceDataStream(config, coin)
                 stream.start()
 
-                time.sleep(5)
-                config['symbol'] = coin.kucoin_name  # Set different symbols
-                bought_id = coin.bought_id
-                actions = MarketAction(stream, config, bought_id)
+                actions = MarketAction(stream, config, coin)
                 actions.start()
                 info[coin.kucoin_name] = {'stream': stream, 'actions': actions}
         except Exception as e:

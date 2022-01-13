@@ -21,11 +21,11 @@ class MarketAction(Thread):
     allow_trade = True
     config = None
 
-    def __init__(self, stream, config, buy_order_id=''):
+    def __init__(self, stream, config, coin):
         Thread.__init__(self)
         MarketAction.init_class_variables(config)
 
-        self.symbol = config['symbol']
+        self.symbol = coin.kucoin_name
         self.funds = config['funds']
         self.stream = stream
         self.coef = config['coef']
@@ -36,8 +36,7 @@ class MarketAction(Thread):
         self.buy_order_id = ''
         self.trade_amount = ''
 
-        if buy_order_id:
-            self.initialize_trade_info(buy_order_id)
+        self.initialize_trade_info(coin)
 
         self.stop = False
 
@@ -135,8 +134,8 @@ class MarketAction(Thread):
 
     def calculate_pair_profit(self, buy_id, sell_id):
         """ Calculates and returns relative profit in percentage"""
-        sell_trade = order_data = self.client.get_order_details(sell_id)
-        buy_trade = order_data = self.client.get_order_details(buy_id)
+        sell_trade = self.client.get_order_details(sell_id)
+        buy_trade = self.client.get_order_details(buy_id)
 
         total_profit = float(sell_trade.get('dealFunds')) -\
                        float(sell_trade.get('fee')) - \
@@ -150,14 +149,16 @@ class MarketAction(Thread):
         increments = {data.get('symbol'): data.get('quoteIncrement') for data in self.market.get_symbol_list()}
         return increments.get(self.symbol)
 
-    def initialize_trade_info(self, buy_order_id):
+    def initialize_trade_info(self, coin):
+        """If coin is bought get information about trade when initialising"""
         try:
-            order_data = self.client.get_order_details(buy_order_id)
-            if not order_data.get('isActive'):
-                trade_amount = order_data.get('dealSize')
-                trade_amount = self.round_trade_amount(trade_amount, self.quoteIncrement)
+            if coin.bought_id:
+                order_data = self.client.get_order_details(coin.bought_id)
+                if not order_data.get('isActive'):
+                    trade_amount = order_data.get('dealSize')
+                    trade_amount = self.round_trade_amount(trade_amount, self.quoteIncrement)
             else:  # if is not bought make trade amount empty string
-                trade_amount = ''
+                    trade_amount = ''
         except Exception as e:
             self.buy_order_id = ''
             self.trade_amount = '0'
@@ -167,7 +168,7 @@ class MarketAction(Thread):
                 logging.warning(message)
         else:
             if trade_amount:
-                self.buy_order_id = buy_order_id
+                self.buy_order_id = coin.bought_id
                 self.trade_amount = trade_amount
 
     @classmethod

@@ -12,9 +12,9 @@ from threading import Thread, Event
 
 
 class BinanceDataStream(Thread):
-    def __init__(self, config):
+    def __init__(self, config, coin):
         Thread.__init__(self)
-        self.symbol = config['symbol']
+        self.symbol = coin.binance_name
         self.interval_fast = config['interval_fast'][:-2]
         self.interval_slow = config['interval_slow'][:-2]
         self.api_key = config['api_key']
