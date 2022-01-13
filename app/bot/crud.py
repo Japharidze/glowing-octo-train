@@ -23,3 +23,9 @@ def update_coin(trade_id: str, kucoin_name: str):
     Coin.query.filter_by(kucoin_name=kucoin_name).\
         update({'bought_id': trade_id})
     db.session.commit()
+
+def clear_db():
+    db.session.query(Trade).delete()
+    db.session.commit()
+    db.session.query(TradePair).delete()
+    db.session.commit()

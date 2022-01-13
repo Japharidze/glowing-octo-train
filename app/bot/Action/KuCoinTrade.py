@@ -35,7 +35,9 @@ class MarketAction(Thread):
         self.order_ids = []
         self.buy_order_id = ''
         self.trade_amount = ''
-        self.initialize_trade_info(buy_order_id)
+
+        if buy_order_id:
+            self.initialize_trade_info(buy_order_id)
 
         self.stop = False
 
@@ -80,10 +82,13 @@ class MarketAction(Thread):
 
     def create_order(self, side, **kwargs):
         try:
-            order_id = self.client.create_market_order(self.symbol, side, **kwargs).get('orderId')
+            order_data = self.client.create_market_order(self.symbol, side, **kwargs)
+            order_id = order_data.get('orderId')
+
             self.order_ids.append(order_id)
             logging.info(f'{side}, symbol: {self.symbol}, order_id: {order_id}')
             print(f'{side} {self.symbol}, order_id: {order_id}')
+
         except Exception as e:
             message = f'Exception (in create_order): {side} {self.symbol} {e}'
             print(message)
@@ -97,19 +102,49 @@ class MarketAction(Thread):
                         self.trade_amount = self.round_trade_amount(trade_amount, self.quoteIncrement)
                         break
                     time.sleep(0.5)
+
                 self.buy_order_id = order_id
-                # update_coin()
-                # insert_trade()
+
+                # TODO: Monitor
+                update_coin(trade_id=self.buy_order_id, kucoin_name=self.symbol)
+                insert_trade(**order_data)
+
             elif side == 'sell':
-                # update_coin()
-                # insert_trade()
-                # insert_tp()
+                while True:  # wait for order to fill
+                    order_data = self.client.get_order_details(order_id)
+                    if not order_data.get('isActive'):
+                        break
+                    time.sleep(0.5)
+
+                # TODO: Monitor
+                update_coin(trade_id='', kucoin_name=self.symbol)
+                insert_trade(**order_data)
+
+                if self.buy_order_id:  # if sell trade has pair buy save in pairs
+                    buy_id = self.buy_order_id
+                    sell_id = order_id
+                    profit = self.calculate_pair_profit(buy_id=buy_id, sell_id=sell_id)
+                    insert_tp(buy_id=buy_id, sell_id=sell_id, profit=profit)
+
                 logging.info(f'Trade Complete! Symbol: {self.symbol}, pair_order_ids: buy: {self.buy_order_id}, sell: {order_id}')
                 self.buy_order_id = ''
                 self.trade_amount = '0'
                 self.update_trade_allowance()
 
             self.save_trade_in_csv(self.symbol, self.buy_order_id)
+
+    def calculate_pair_profit(self, buy_id, sell_id):
+        """ Calculates and returns relative profit in percentage"""
+        sell_trade = order_data = self.client.get_order_details(sell_id)
+        buy_trade = order_data = self.client.get_order_details(buy_id)
+
+        total_profit = float(sell_trade.get('dealFunds')) -\
+                       float(sell_trade.get('fee')) - \
+                       float(buy_trade.get('dealFunds')) - \
+                       float(buy_trade.get('fee'))
+
+        relative_profit_perc = total_profit / float(buy_trade.get('dealFunds')) * 100
+        return relative_profit_perc
 
     def calculate_increment(self):
         increments = {data.get('symbol'): data.get('quoteIncrement') for data in self.market.get_symbol_list()}

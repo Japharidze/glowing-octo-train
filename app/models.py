@@ -58,6 +58,8 @@ class Trade(db.Model):
 class TradePair(db.Model):
     __tablename__ = 'trade_pairs'
 
+    # TODO: add coin name for easy filtering from dashboard
+
     id = db.Column(db.Integer, primary_key=True)
     buy_id = db.Column(db.String, db.ForeignKey('trades.id'), nullable=False)
     sell_id = db.Column(db.String, db.ForeignKey('trades.id'), nullable=False)
