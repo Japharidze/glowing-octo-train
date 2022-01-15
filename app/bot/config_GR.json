@@ -7,5 +7,6 @@
   "window": 3,
   "funds": 10,
   "interval_fast": "1min",   
-  "interval_slow": "15min"
+  "interval_slow": "15min",
+  "mode": "live"
 }
