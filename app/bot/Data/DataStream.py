@@ -9,7 +9,6 @@ import pandas_ta as ta
 
 from binance.client import Client
 from threading import Thread, Event
-from tqdm import tqdm
 
 
 class BinanceDataStream(Thread):
