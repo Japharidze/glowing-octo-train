@@ -1,8 +1,8 @@
 """init
 
-Revision ID: 5373bf75104f
+Revision ID: c3f67ba4cc9c
 Revises: 
-Create Date: 2022-01-06 17:39:37.857727
+Create Date: 2022-01-15 17:50:18.917311
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '5373bf75104f'
+revision = 'c3f67ba4cc9c'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -23,12 +23,13 @@ def upgrade():
     sa.Column('kucoin_name', sa.String(), nullable=True),
     sa.Column('binance_name', sa.String(), nullable=True),
     sa.Column('allow_trade', sa.Integer(), nullable=True),
-    sa.Column('is_bought', sa.Integer(), nullable=True),
     sa.Column('bought_id', sa.String(), nullable=True),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('kucoin_name')
     )
     op.create_table('trades',
     sa.Column('id', sa.String(), nullable=False),
+    sa.Column('coin_id', sa.Integer(), nullable=False),
     sa.Column('symbol', sa.String(), nullable=False),
     sa.Column('opType', sa.String(), nullable=True),
     sa.Column('type', sa.String(), nullable=True),
@@ -58,7 +59,7 @@ def upgrade():
     sa.Column('cancelExist', sa.Integer(), nullable=True),
     sa.Column('createdAt', sa.Integer(), nullable=True),
     sa.Column('tradeType', sa.String(), nullable=True),
-    sa.ForeignKeyConstraint(['symbol'], ['coins.kucoin_name'], name='fk_trades_symbol_coins'),
+    sa.ForeignKeyConstraint(['coin_id'], ['coins.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('trade_pairs',
