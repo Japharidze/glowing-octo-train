@@ -48,7 +48,7 @@ class Trade(db.Model):
     tags = db.Column(db.String)
     isActive = db.Column(db.Integer)
     cancelExist = db.Column(db.Integer)
-    createdAt = db.Column(db.Integer)
+    createdAt = db.Column(db.BigInteger)
     tradeType = db.Column(db.String)
     # trade_pairs = db.relationship('TradePair', backref='trades', lazy=True)
 
@@ -69,15 +69,15 @@ class TradePair(db.Model):
         return f"{self.buy_id}:{self.sell_id}:{self.profit}"
 
 
-# class BeckTestTrade(db.Model):
-#     __tablename__ = 'beck_test_trades'
-#
-#     # TODO: add coin name for easy filtering from dashboard
-#     id = db.Column(db.Integer, primary_key=True)
-#     symbol = db.Column(db.String, nullable=False)
-#     buy_time = db.Column(db.String, nullable=False)
-#     sell_time = db.Column(db.String, nullable=False)
-#     profit = db.Column(db.Float, nullable=False)
-#
-#     def __repr__(self):
-#         return f"{self.id}:{self.symbol}:{self.profit}"
+class BeckTestTrade(db.Model):
+    __tablename__ = 'beck_test_trades'
+
+    # TODO: add coin name for easy filtering from dashboard
+    id = db.Column(db.Integer, primary_key=True)
+    symbol = db.Column(db.String, nullable=False)
+    buy_time = db.Column(db.String, nullable=False)
+    sell_time = db.Column(db.String, nullable=False)
+    profit = db.Column(db.Float, nullable=False)
+
+    def __repr__(self):
+        return f"{self.id}:{self.symbol}:{self.profit}"

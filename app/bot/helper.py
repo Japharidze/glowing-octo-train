@@ -8,14 +8,12 @@ def load_config_file(path):
 
 def clean_trade_dict(dct):
     """Clean Kucoin trade responce. Replace None and Boolean data types to save in SQL"""
-    # result = dct.copy()
-    result = {'symbol': dct['symbol'], 'id': dct['id']}
-    # result['coin_id'] = 1
+    result = dct.copy()
 
-    # for key, value in dct.items():
-        # if value is None:
-            # value = ''
-        # elif value is False or value is True:    
-            # value = value*1
-        # result[key] = value
+    for key, value in dct.items():
+        if value is None:
+            value = ''
+        elif value is False or value is True:    
+            value = value*1
+        result[key] = value
     return result
