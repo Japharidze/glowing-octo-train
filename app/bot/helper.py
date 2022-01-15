@@ -10,7 +10,7 @@ def clean_trade_dict(dct):
     """Clean Kucoin trade responce. Replace None and Boolean data types to save in SQL"""
     # result = dct.copy()
     result = {'symbol': dct['symbol'], 'id': dct['id']}
-    result['coin_id'] = 1
+    # result['coin_id'] = 1
 
     # for key, value in dct.items():
         # if value is None:

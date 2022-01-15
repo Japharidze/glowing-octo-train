@@ -20,8 +20,8 @@ class Trade(db.Model):
     __tablename__ = 'trades'
 
     id = db.Column(db.String, primary_key=True)
-    coin_id = db.Column(db.Integer, db.ForeignKey('coins.id', ondelete='CASCADE'), nullable=False)
-    symbol = db.Column(db.String, nullable=False)
+    # coin_id = db.Column(db.Integer, db.ForeignKey('coins.id', ondelete='CASCADE'), nullable=False)
+    symbol = db.Column(db.String, db.ForeignKey('coins.kucoin_name', ondelete='CASCADe'), nullable=False)
     opType = db.Column(db.String)
     type = db.Column(db.String)
     side = db.Column(db.String)   
