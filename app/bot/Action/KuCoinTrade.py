@@ -7,6 +7,7 @@ from threading import Thread
 from kucoin.client import Trade, Market, User
 from app.bot.Data.KucoinSymbols import load_kucoin_binance_symbols
 from app.bot.crud import insert_trade, insert_tp, update_coin
+from app.bot.helper import clean_trade_dict
 
 
 class MarketAction(Thread):
@@ -150,9 +151,8 @@ class MarketAction(Thread):
                 self.buy_order_id = order_id
 
                 # TODO: Monitor
-                print('Before Updating Coin: ', self.symbol, self.buy_order_id)
-                # update_coin(kucoin_name=self.symbol, trade_id=self.buy_order_id)
-                insert_trade(**order_data)
+                update_coin(kucoin_name=self.symbol, trade_id=self.buy_order_id)
+                insert_trade(**clean_trade_dict(order_data))
 
             elif side == 'sell':
                 while True:  # wait for order to fill
@@ -162,8 +162,8 @@ class MarketAction(Thread):
                     time.sleep(0.5)
 
                 # TODO: Monitor
-                # update_coin(kucoin_name=self.symbol, trade_id='')
-                insert_trade(**order_data)
+                update_coin(kucoin_name=self.symbol, trade_id='')
+                insert_trade(**clean_trade_dict(order_data))
 
                 if self.buy_order_id:  # if sell trade has pair buy save in pairs
                     buy_id = self.buy_order_id

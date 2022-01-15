@@ -1,31 +1,43 @@
+from sqlalchemy.orm import sessionmaker
+
 from app.models import Coin, Trade, TradePair
 from app import db
 
+Session = sessionmaker(bind=db.engine)
+
 def insert_coin(**kwargs):
-    cn = Coin(**kwargs)
-    db.session.add(cn)
-    db.session.commit()
+    with Session() as s:
+        cn = Coin(**kwargs)
+        s.add(cn)
+        s.commit()
 
 def insert_trade(**kwargs):
-    trade = Trade(**kwargs)
-    db.session.add(trade)
-    db.session.commit()
+    with Session() as s:
+        trade = Trade(**kwargs)
+        s.add(trade)
+        s.commit()
 
 def insert_tp(**kwargs):
-    tp = TradePair(**kwargs)
-    db.session.add(tp)
-    db.session.commit()
+    with Session() as s:
+        tp = TradePair(**kwargs)
+        s.add(tp)
+        s.commit()
 
 def get_coins():
-    return Coin.query.all()
+    with Session() as s:
+        res = s.query(Coin).all()
+    return res
 
 def get_trades():
-    return Trade.query.all()
+    with Session() as s:
+        res = s.query(Trade).all()
+    return res
 
 def update_coin(trade_id: str, kucoin_name: str):
-    Coin.query.filter_by(kucoin_name=kucoin_name).\
-        update({'bought_id': trade_id})
-    db.session.commit()
+    with Session() as s:
+        s.query(Coin).filter_by(kucoin_name=kucoin_name).\
+            update({'bought_id': trade_id})
+        s.commit()
 
 def clear_db():
     db.session.query(Trade).delete()
