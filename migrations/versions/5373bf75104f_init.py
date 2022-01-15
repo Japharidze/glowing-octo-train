@@ -58,7 +58,7 @@ def upgrade():
     sa.Column('cancelExist', sa.Integer(), nullable=True),
     sa.Column('createdAt', sa.Integer(), nullable=True),
     sa.Column('tradeType', sa.String(), nullable=True),
-    sa.ForeignKeyConstraint(['symbol'], ['coins.kucoin_name'], ),
+    sa.ForeignKeyConstraint(['symbol'], ['coins.kucoin_name'], name='fk_trades_symbol_coins'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('trade_pairs',
