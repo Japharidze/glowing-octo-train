@@ -67,3 +67,17 @@ class TradePair(db.Model):
 
     def __repr__(self):
         return f"{self.buy_id}:{self.sell_id}:{self.profit}"
+
+
+# class BeckTestTrade(db.Model):
+#     __tablename__ = 'beck_test_trades'
+#
+#     # TODO: add coin name for easy filtering from dashboard
+#     id = db.Column(db.Integer, primary_key=True)
+#     symbol = db.Column(db.String, nullable=False)
+#     buy_time = db.Column(db.String, nullable=False)
+#     sell_time = db.Column(db.String, nullable=False)
+#     profit = db.Column(db.Float, nullable=False)
+#
+#     def __repr__(self):
+#         return f"{self.id}:{self.symbol}:{self.profit}"

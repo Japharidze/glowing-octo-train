@@ -79,3 +79,11 @@ def test_buy_sell():
         break
     return make_response('; '.join([str(x) for x in Trade.query.all()]), 200)
 
+
+@app.route('/sell_all')
+def sell():
+    config_path = 'app/bot/config_GR.json'
+    config = load_config_file(config_path)
+    MarketAction.init_class_variables(config)
+    MarketAction.sell_everything()
+    return make_response('Sold', 200)
