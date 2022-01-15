@@ -140,7 +140,10 @@ class BinanceDataStream(Thread):
         return self.data
 
     def add_indicators(self):
+        self.data['EMA5'] = self.data.ta.ema(close='Close', length=5)
+        self.data['EMA9'] = self.data.ta.ema(close='Close', length=9)
         self.data['EMA10'] = self.data.ta.ema(close='Close', length=10)
+        self.data['EMA12'] = self.data.ta.ema(close='Close', length=12)
         self.data['EMA50'] = self.data.ta.ema(close='Close', length=50)
         self.data['EMA10_Volume'] = self.data.ta.ema(close='Volume', length=10)
         self.data['EMA60_Volume'] = self.data.ta.ema(close='Volume', length=60)
