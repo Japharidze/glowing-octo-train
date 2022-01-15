@@ -1,3 +1,5 @@
+from threading import Thread
+
 from flask import make_response, request
 from flask import current_app as app
 
@@ -39,7 +41,8 @@ def insert_pt():
 
 @app.route('/init_bot')
 def init_bot():
-    run_bot()
+    t1 = Thread(target=run_bot, daemon=True)
+    t1.start()
     return make_response('Bot started successfuly!', 200)
 
 ############# TEST ############
