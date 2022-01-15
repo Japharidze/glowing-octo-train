@@ -45,7 +45,7 @@ class MarketAction(Thread):
     def run(self):
 
         if self.live_trade:
-            print('Trading in Live')
+            print(f'Trading in Live for {self.symbol}')
             self.initialize_trade_info(self.coin)
 
             while not self.stop:
@@ -80,10 +80,9 @@ class MarketAction(Thread):
         print('Action Thread Stopped!')
 
     def indicator_buy(self):
-        good_trend = self.stream.data['EMA50'].rolling(window=60).apply(
-            lambda x: (x[-1] - x[0]) / x[0] > -10e-3).fillna(0)
-
+        good_trend = self.trend_v1()  # check if trend is up or flat
         up_candles = self.stream.data['HA_Close'] > self.stream.data['HA_Open']
+
         try:  # see if Trades are available
             indicator = (self.stream.data['Volume'] > self.coef * self.stream.data['EMA60_Volume']) * (
                     self.stream.data['Trades'] > self.coef * self.stream.data['EMA60_Trades'])
@@ -95,11 +94,34 @@ class MarketAction(Thread):
         #         indicator = indicator.rolling(window=window).apply(lambda x: np.sum(x) >= window).fillna(0)
         return buy
 
+    def trend_v1(self):
+        good_trend = self.stream.data['EMA50'].rolling(window=60).apply(
+            lambda x: (x[-1] - x[0]) / x[0] > -10e-3).fillna(0)
+        return good_trend
+
+    def trend_v2(self):
+        EMA5 = self.stream.data['EMA5']
+        EMA9 = self.stream.data['EMA9']
+        EMA12 = self.stream.data['EMA12']
+        good_trend = EMA12 < EMA9 < EMA5
+        return good_trend
+
     def indicator_sell(self):
-        lose_momentum = self.stream.data['HA_Close_slow'].iloc[-1] < self.stream.data['HA_Open_slow'].iloc[-1]
+        lose_momentum = self.lose_momentum_v2()
         if lose_momentum:
             return True
         return False
+
+    def lose_momentum_v1(self):
+        lose_momentum = self.stream.data['HA_Close_slow'].iloc[-1] < self.stream.data['HA_Open_slow'].iloc[-1]
+        return lose_momentum
+
+    def lose_momentum_v2(self):
+        EMA5 = self.stream.data['EMA5'].iloc[-1]
+        EMA9 = self.stream.data['EMA9'].iloc[-1]
+        EMA12 = self.stream.data['EMA12'].iloc[-1]
+        lose_momentum = EMA12 > EMA9 and EMA12 > EMA5
+        return lose_momentum
 
     def create_order(self, side, **kwargs):
         try:
@@ -128,7 +150,8 @@ class MarketAction(Thread):
                 self.buy_order_id = order_id
 
                 # TODO: Monitor
-                update_coin(trade_id=self.buy_order_id, kucoin_name=self.symbol)
+                print('Before Updating Coin: ', self.symbol, self.buy_order_id)
+                # update_coin(kucoin_name=self.symbol, trade_id=self.buy_order_id)
                 insert_trade(**order_data)
 
             elif side == 'sell':
@@ -139,7 +162,7 @@ class MarketAction(Thread):
                     time.sleep(0.5)
 
                 # TODO: Monitor
-                update_coin(trade_id='', kucoin_name=self.symbol)
+                # update_coin(kucoin_name=self.symbol, trade_id='')
                 insert_trade(**order_data)
 
                 if self.buy_order_id:  # if sell trade has pair buy save in pairs
@@ -193,7 +216,6 @@ class MarketAction(Thread):
                 self.trade_amount = trade_amount
 
     def backtest_create_order(self, side, **kwargs):
-
         if side == 'buy':
             self.buy_order_id = 'buy_id'
             self.backtest_buy_price = self.stream.data.Close.iloc[-1]
