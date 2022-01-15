@@ -9,6 +9,7 @@ import pandas_ta as ta
 
 from binance.client import Client
 from threading import Thread, Event
+from tqdm import tqdm
 
 
 class BinanceDataStream(Thread):
@@ -27,6 +28,9 @@ class BinanceDataStream(Thread):
         self.data = None
         self.initial_collect_data()
         self.check_for_action = False
+
+        self.live_trade = config['mode'] == 'live'
+        self.backtest = config['mode'] == 'backtest'
 
     def run(self):
         logging.info(f'{self.symbol}: Started Binance Data Stream!')
@@ -48,25 +52,44 @@ class BinanceDataStream(Thread):
             print(message)
             logging.info(message)
 
-        while True:
-            try:
-                websocket.enableTrace(False)
-                ws = websocket.WebSocketApp(self.socket, on_message=on_message, on_open=on_open)
-                ws.run_forever(skip_utf8_validation=True, ping_interval=10, ping_timeout=8)
-            except Exception as e:
-                gc.collect()
-                message = f"{self.symbol}: Binance Websocket connection Error: {e}"
+        if self.live_trade:
+            while True:
+                try:
+                    websocket.enableTrace(False)
+                    ws = websocket.WebSocketApp(self.socket, on_message=on_message, on_open=on_open)
+                    ws.run_forever(skip_utf8_validation=True, ping_interval=10, ping_timeout=8)
+                except Exception as e:
+                    gc.collect()
+                    message = f"{self.symbol}: Binance Websocket connection Error: {e}"
+                    print(message)
+                    logging.debug(message)
+
+                message = f"{self.symbol}: Reconnecting Binance Websocket After 5 Sec!"
                 print(message)
                 logging.debug(message)
+                time.sleep(5)
 
-            message = f"{self.symbol}: Reconnecting Binance Websocket After 5 Sec!"
-            print(message)
-            logging.debug(message)
-            time.sleep(5)
+        elif self.backtest:
+            # get historical data for period, feed one by one\
+            self.initial_collect_data(14)
+            whole_data = self.data.copy()
+            print(self.symbol, 'Total data points in whole_data: ', len(whole_data))
+            for i in range(200, len(whole_data)):
+                self.data = whole_data.iloc[i-200:i]
+                self.check_for_action = True
 
-    def binance_historical_data(self):
+                while self.check_for_action:  # wait fake trade to happen and only after feed next candle
+                    pass
+            print(self.symbol, 'Finished simulation')
+
+    def binance_historical_data(self, test_days=0):
         client = Client('', '', tld='com')
-        fromdate = str(datetime.utcnow() - timedelta(hours=3))
+
+        if not test_days:
+            fromdate = str(datetime.utcnow() - timedelta(hours=3))
+        else:
+            fromdate = str(datetime.utcnow() - timedelta(days=test_days))
+
         klines = client.get_historical_klines(self.symbol, self.interval_fast, fromdate)
         df = pd.DataFrame(klines,
                           columns=['DateTime', 'Open', 'High', 'Low', 'Close', 'Volume', 'closeTime',
@@ -125,8 +148,8 @@ class BinanceDataStream(Thread):
         self.data['EMA10_Trades'] = self.data.ta.ema(close='Trades', length=10)
         self.data['EMA60_Trades'] = self.data.ta.ema(close='Trades', length=60)
 
-    def initial_collect_data(self):
-        self.binance_historical_data()  # get historical data when starting the bot not to wait stream
+    def initial_collect_data(self, days=0):
+        self.binance_historical_data(days)  # get historical data when starting the bot not to wait stream
         self.add_indicators()
         self.add_slow_data()
         self.HA_fast()

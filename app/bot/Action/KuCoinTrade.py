@@ -21,10 +21,13 @@ class MarketAction(Thread):
     allow_trade = True
     config = None
 
+    backtest_profit = 0 # TODO: remove
+
     def __init__(self, stream, config, coin):
         Thread.__init__(self)
         MarketAction.init_class_variables(config)
 
+        self.coin = coin
         self.symbol = coin.kucoin_name
         self.funds = config['funds']
         self.stream = stream
@@ -35,26 +38,45 @@ class MarketAction(Thread):
         self.order_ids = []
         self.buy_order_id = ''
         self.trade_amount = ''
-
-        self.initialize_trade_info(coin)
-
+        self.live_trade = config['mode'] == 'live'
+        self.backtest = config['mode'] == 'backtest'
         self.stop = False
 
     def run(self):
-        while not self.stop:
-            if self.stream.check_for_action:
-                # print(f'Action -> Checking for action! {self.symbol}')
-                if self.indicator_buy() and self.allow_trade and \
-                        not self.indicator_sell() and not self.buy_order_id:
-                    self.create_order('buy', funds=self.funds)
 
-                elif self.indicator_sell() and self.buy_order_id:
-                    self.create_order('sell', size=self.trade_amount)
+        if self.live_trade:
+            print('Trading in Live')
+            self.initialize_trade_info(self.coin)
 
-                self.stream.check_for_action = False
-            # os.system('cls' if os.name == 'nt' else 'clear')
+            while not self.stop:
+                if self.stream.check_for_action:
+                    # print(f'Action -> Checking for action! {self.symbol}')
+                    if self.indicator_buy() and self.allow_trade and \
+                            not self.indicator_sell() and not self.buy_order_id:
+                        self.create_order('buy', funds=self.funds)
 
-            time.sleep(0.5)
+                    elif self.indicator_sell() and self.buy_order_id:
+                        self.create_order('sell', size=self.trade_amount)
+
+                    self.stream.check_for_action = False
+                time.sleep(0.5)
+
+        elif self.backtest:
+            print('Back testing bot')
+            while not self.stop:
+                if self.stream.check_for_action:
+                    # print(f'Action -> Checking for action! {self.symbol}')
+                    if self.indicator_buy() and self.allow_trade and \
+                            not self.indicator_sell() and not self.buy_order_id:
+                        self.backtest_create_order('buy', funds=self.funds)
+
+                    elif self.indicator_sell() and self.buy_order_id:
+                        self.backtest_create_order('sell', funds=self.funds)
+                        print('backtest_profit:', MarketAction.backtest_profit)
+
+                    self.stream.check_for_action = False
+
+
         print('Action Thread Stopped!')
 
     def indicator_buy(self):
@@ -92,6 +114,7 @@ class MarketAction(Thread):
             message = f'Exception (in create_order): {side} {self.symbol} {e}'
             print(message)
             logging.warning(message)
+
         else:
             if side == 'buy':
                 while True:  # wait for order to fill
@@ -129,8 +152,6 @@ class MarketAction(Thread):
                 self.buy_order_id = ''
                 self.trade_amount = '0'
                 self.update_trade_allowance()
-
-            self.save_trade_in_csv(self.symbol, self.buy_order_id)
 
     def calculate_pair_profit(self, buy_id, sell_id):
         """ Calculates and returns relative profit in percentage"""
@@ -171,17 +192,20 @@ class MarketAction(Thread):
                 self.buy_order_id = coin.bought_id
                 self.trade_amount = trade_amount
 
-    @classmethod
-    def save_trade_in_csv(cls, symbol, buy_order_id):
-        try:
-            symbol_csv = load_kucoin_binance_symbols(cls.config)
-            symbol_csv.at[symbol_csv.Kucoin == symbol, 'Bought_ID'] = buy_order_id
-            symbol_csv.to_csv(cls.config['symbol_csv_path'], index=False)
-            # print("Trade id saved in CSV!")
-        except Exception as e:
-            message = f'Exception in Saving trade ID for {symbol} in CSV: {e}'
-            print(message)
-            logging.warning(message)
+    def backtest_create_order(self, side, **kwargs):
+
+        if side == 'buy':
+            self.buy_order_id = 'buy_id'
+            self.backtest_buy_price = self.stream.data.Close.iloc[-1]
+
+        if side == 'sell':
+            self.buy_order_id = ''
+
+            sell_price = self.stream.data.Close.iloc[-1]
+            relative_profit_perc = (sell_price/self.backtest_buy_price - 1.002)*100
+            MarketAction.backtest_profit += relative_profit_perc
+            # print(self.symbol, relative_profit_perc)
+
 
     @staticmethod
     def round_trade_amount(funds, increment):
@@ -214,8 +238,6 @@ class MarketAction(Thread):
                     if balance > 5:
                         cls.client.create_market_order(symbol, 'buy', size=cls.round_trade_amount(balance, '0.001'))
                         print(f'Sold {symbol}')
-
-                cls.save_trade_in_csv(symbol, '')
 
         print('Done Selling!')
 

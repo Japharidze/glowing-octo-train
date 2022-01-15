@@ -37,9 +37,14 @@ def init_bot():
     run_bot()
     return make_response('Bot started successfuly!', 200)
 
-
-
 ############# TEST ############
+
+
+@app.route('/backtest')
+def backtest_bot():
+    run_bot(mode='backtest')
+    return make_response('Backtest Run !', 200)
+
 @app.route('/clear_trades_from_db')
 def clear_trades():
     clear_db()
@@ -55,10 +60,13 @@ def test_buy_sell():
     config_path = 'app/bot/config_GR.json'
     config = load_config_file(config_path)
     config['symbol'] = 'SHIB-USDT'  # Set different symbols
-    actions = MarketAction('', config, '')
-    actions.create_order('buy', funds=10)
-    time.sleep(5)
-    actions.create_order('sell', size=actions.trade_amount)
-
+    for coin in Coin.query.all():
+        try:
+            actions = MarketAction('', config, coin)
+            actions.create_order('buy', funds=10)
+            time.sleep(1)
+            actions.create_order('sell', size=actions.trade_amount)
+        except Exception as e:
+            print(coin, e)
     return make_response('; '.join([str(x) for x in Trade.query.all()]), 200)
 

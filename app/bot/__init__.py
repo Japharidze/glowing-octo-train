@@ -6,9 +6,12 @@ from .Data.KucoinSymbols import load_kucoin_binance_symbols
 from .helper import load_config_file
 from app.bot.crud import get_coins  # TODO: change to relative path
 
-def run_bot():
+def run_bot(mode='live'):
+    """Mode can be live or backtest"""
+
     config_path = 'app/bot/config_GR.json'
     config = load_config_file(config_path)
+    config['mode'] = mode
 
     # TODO: change info to something more robust for accessing threads
     info = dict()
