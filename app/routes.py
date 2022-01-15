@@ -3,11 +3,16 @@ from flask import current_app as app
 
 from .bot import run_bot
 from .models import Coin, TradePair, Trade
-from .bot.crud import insert_coin, update_coin, insert_tp, insert_trade, clear_db
+from .bot.crud import insert_coin, update_coin, insert_tp, insert_trade, clear_db, get_trades
 
 @app.route('/')
 def index():
     return make_response('; '.join([str(x) for x in Coin.query.all()]), 200)
+
+@app.route('/list_trades')
+def list_trades():
+    return make_response('; '.join([str(x) for x in get_trades()]))
+
 
 @app.route('/insert_coins')
 def insert_coins():
@@ -59,7 +64,7 @@ import time
 def test_buy_sell():
     config_path = 'app/bot/config_GR.json'
     config = load_config_file(config_path)
-    config['symbol'] = 'SHIB-USDT'  # Set different symbols
+    config['mode'] = 'live'
     for coin in Coin.query.all():
         try:
             actions = MarketAction('', config, coin)
@@ -68,5 +73,6 @@ def test_buy_sell():
             actions.create_order('sell', size=actions.trade_amount)
         except Exception as e:
             print(coin, e)
+        break
     return make_response('; '.join([str(x) for x in Trade.query.all()]), 200)
 

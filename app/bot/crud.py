@@ -19,6 +19,9 @@ def insert_tp(**kwargs):
 def get_coins():
     return Coin.query.all()
 
+def get_trades():
+    return Trade.query.all()
+
 def update_coin(trade_id: str, kucoin_name: str):
     Coin.query.filter_by(kucoin_name=kucoin_name).\
         update({'bought_id': trade_id})
@@ -26,6 +29,5 @@ def update_coin(trade_id: str, kucoin_name: str):
 
 def clear_db():
     db.session.query(Trade).delete()
-    db.session.commit()
     db.session.query(TradePair).delete()
     db.session.commit()
