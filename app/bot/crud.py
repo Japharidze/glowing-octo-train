@@ -1,6 +1,6 @@
 from sqlalchemy.orm import sessionmaker
 
-from app.models import Coin, Trade, TradePair
+from app.models import Coin, Trade, TradePair, BeckTestTrade
 from app import db
 
 Session = sessionmaker(bind=db.engine)
@@ -43,3 +43,9 @@ def clear_db():
     db.session.query(Trade).delete()
     db.session.query(TradePair).delete()
     db.session.commit()
+
+def backtest_insert_tp(**kwargs):
+    with Session() as s:
+        back_tp = BeckTestTrade(**kwargs)
+        s.add(back_tp)
+        s.commit()

@@ -6,7 +6,7 @@ from threading import Thread
 
 from kucoin.client import Trade, Market, User
 from app.bot.Data.KucoinSymbols import load_kucoin_binance_symbols
-from app.bot.crud import insert_trade, insert_tp, update_coin
+from app.bot.crud import insert_trade, insert_tp, update_coin, backtest_insert_tp
 from app.bot.helper import clean_trade_dict
 
 
@@ -219,15 +219,26 @@ class MarketAction(Thread):
         if side == 'buy':
             self.buy_order_id = 'buy_id'
             self.backtest_buy_price = self.stream.data.Close.iloc[-1]
+            self.backtest_buy_time = self.stream.data.DateTime.iloc[-1]
 
         if side == 'sell':
-            self.buy_order_id = ''
 
             sell_price = self.stream.data.Close.iloc[-1]
             relative_profit_perc = (sell_price/self.backtest_buy_price - 1.002)*100
             MarketAction.backtest_profit += relative_profit_perc
             # print(self.symbol, relative_profit_perc)
 
+
+            data_kwargs = {'symbol': self.symbol,
+                           'buy_time': self.backtest_buy_time,
+                           'sell_time': self.stream.data.DateTime.iloc[-1],
+                           'profit': relative_profit_perc,
+                           }
+            backtest_insert_tp(**data_kwargs)
+
+            self.buy_order_id = ''
+            self.backtest_buy_time = ''
+            self.backtest_buy_price = 0
 
     @staticmethod
     def round_trade_amount(funds, increment):
