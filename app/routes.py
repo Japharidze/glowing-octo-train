@@ -81,7 +81,17 @@ def test_buy_sell():
 
 @app.route('/sell_all')
 def sell():
+    """Exchange all coins to USDT"""
     config = KucoinConfig()
     MarketAction.init_class_variables(config)
     MarketAction.sell_everything()
     return make_response('Sold', 200)
+
+
+@app.route('/get_balance')
+def return_balance():
+    """Return Total Balance of the Trade Account in USDT"""
+    config = KucoinConfig()
+    MarketAction.init_class_variables(config)
+    balance = MarketAction.calculate_total_balance()
+    return make_response(f'Total Balance in USDT: {balance}', 200)
