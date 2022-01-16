@@ -81,8 +81,7 @@ def test_buy_sell():
 
 @app.route('/sell_all')
 def sell():
-    config_path = 'app/bot/config_GR.json'
-    config = load_config_file(config_path)
+    config = KucoinConfig()
     MarketAction.init_class_variables(config)
     MarketAction.sell_everything()
     return make_response('Sold', 200)
