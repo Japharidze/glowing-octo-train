@@ -13,7 +13,7 @@ class Config(object):
 class KucoinConfig(object):
     api_key = os.environ.get('API_KEY')
     api_secret = os.environ.get('API_SECRET')
-    api_passphrase = "trading_bot_1"
+    api_passphrase = os.environ.get('API_PASSPHRASE')
     is_sandbox = False
     coef = 1.5
     window = 3
@@ -27,6 +27,3 @@ class KucoinConfig(object):
 
     def __setitem__(self, __name: str, __value: Any) -> None:
         setattr(self, __name, __value)
-
-    def asda(self):
-        return self.__dict__
