@@ -1,11 +1,3 @@
-import json
-
-def load_config_file(path):
-    with open(path, 'r') as file:
-        config = json.load(file)
-        print('Config File Loaded!')
-    return config
-
 def clean_trade_dict(dct):
     """Clean Kucoin trade responce. Replace None and Boolean data types to save in SQL"""
     result = dct.copy()

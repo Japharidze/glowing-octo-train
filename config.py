@@ -1,4 +1,5 @@
 import os
+from typing import Any
 
 
 class Config(object):
@@ -9,3 +10,23 @@ class Config(object):
         or 'sqlite:///bot/database.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+class KucoinConfig(object):
+    api_key = os.environ.get('API_KEY')
+    api_secret = os.environ.get('API_SECRET')
+    api_passphrase = "trading_bot_1"
+    is_sandbox = False
+    coef = 1.5
+    window = 3
+    funds = 10
+    interval_fast = '1min'
+    interval_slow = '15min'
+    mode = 'live'
+
+    def __getitem__(self, param):
+        return getattr(self, param)
+
+    def __setitem__(self, __name: str, __value: Any) -> None:
+        setattr(self, __name, __value)
+
+    def asda(self):
+        return self.__dict__

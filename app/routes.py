@@ -60,13 +60,12 @@ def clear_trades():
 
 
 from .bot.Action.KuCoinTrade import MarketAction
-from .bot.helper import load_config_file
+from config import KucoinConfig
 import time
 
 @app.route('/test_buy_sell')
 def test_buy_sell():
-    config_path = 'app/bot/config_GR.json'
-    config = load_config_file(config_path)
+    config = KucoinConfig()
     config['mode'] = 'live'
     for coin in Coin.query.all():
         try:
