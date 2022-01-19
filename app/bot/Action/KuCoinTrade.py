@@ -1,11 +1,9 @@
-import logging
 import time
 from decimal import Decimal
 
 from threading import Thread
 
 from kucoin.client import Trade, Market, User
-from app.bot.Data.KucoinSymbols import load_kucoin_binance_symbols
 from app.bot.crud import insert_trade, insert_tp, update_coin, backtest_insert_tp
 from app.bot.helper import clean_trade_dict
 
@@ -22,7 +20,7 @@ class MarketAction(Thread):
     allow_trade = True
     config = None
 
-    backtest_profit = 0 # TODO: remove
+    backtest_profit = 0  # TODO: remove
 
     def __init__(self, stream, config, coin):
         Thread.__init__(self)
@@ -38,6 +36,7 @@ class MarketAction(Thread):
         self.quoteIncrement = self.calculate_increment()  # TODO: correct precision
         self.order_ids = []
         self.buy_order_id = ''
+        self.stop_loss_order_id = ''
         self.trade_amount = ''
         self.live_trade = config['mode'] == 'live'
         self.backtest = config['mode'] == 'backtest'
@@ -76,7 +75,6 @@ class MarketAction(Thread):
                         print('backtest_profit:', MarketAction.backtest_profit)
 
                     self.stream.check_for_action = False
-
 
         print('Action Thread Stopped!')
 
@@ -126,17 +124,29 @@ class MarketAction(Thread):
 
     def create_order(self, side, **kwargs):
         try:
-            order_data = self.client.create_market_order(self.symbol, side, **kwargs)
-            order_id = order_data.get('orderId')
+            if side == 'buy':
+                order_data = self.client.create_market_order(self.symbol, side, **kwargs)
+                order_id = order_data.get('orderId')
+                print(f'{side} {self.symbol}, order_id: {order_id}')
 
-            self.order_ids.append(order_id)
-            logging.info(f'{side}, symbol: {self.symbol}, order_id: {order_id}')
-            print(f'{side} {self.symbol}, order_id: {order_id}')
+            if side == 'sell':
+                stop_executed = False
+                if self.stop_loss_order_id:  # Check if stop loss was executed
+                    stop_loss_data = self.client.get_order_details(self.stop_loss_order_id)
+                    if not stop_loss_data.get('isActive'):  # Check if stop loss was executed
+                        stop_executed = True
+                        order_id = stop_loss_data.get('orderId')  # Set order Id for saving correct trade in database
+
+                if not stop_executed:  # Create sell order and cancel stop loss
+                    order_data = self.client.create_market_order(self.symbol, side, **kwargs)
+                    order_id = order_data.get('orderId')
+                    print(f'{side} {self.symbol}, order_id: {order_id}')
+                    self.client.cancel_order(self.stop_loss_order_id)
+                    self.stop_loss_order_id = ''
 
         except Exception as e:
             message = f'Exception (in create_order): {side} {self.symbol} {e}'
             print(message)
-            logging.warning(message)
 
         else:
             if side == 'buy':
@@ -149,6 +159,7 @@ class MarketAction(Thread):
                     time.sleep(0.5)
 
                 self.buy_order_id = order_id
+                self.stop_loss_order_id = self.create_stop_loss(order_data)  # Create Stop Loss order
 
                 # TODO: Monitor
                 update_coin(kucoin_name=self.symbol, trade_id=self.buy_order_id)
@@ -171,17 +182,26 @@ class MarketAction(Thread):
                     profit = self.calculate_pair_profit(buy_id=buy_id, sell_id=sell_id)
                     insert_tp(buy_id=buy_id, sell_id=sell_id, profit=profit)
 
-                logging.info(f'Trade Complete! Symbol: {self.symbol}, pair_order_ids: buy: {self.buy_order_id}, sell: {order_id}')
                 self.buy_order_id = ''
                 self.trade_amount = '0'
                 self.update_trade_allowance()
+
+    def create_stop_loss(self, data):
+        kwargs = {'symbol': self.symbol,
+                  'side': 'sell',
+                  'funds': self.trade_amount,
+                  'price': data.get('price') * 0.96
+                  }
+
+        order_data = self.client.create_market_stop_order(**kwargs)
+        return order_data.get('order_id')
 
     def calculate_pair_profit(self, buy_id, sell_id):
         """ Calculates and returns relative profit in percentage"""
         sell_trade = self.client.get_order_details(sell_id)
         buy_trade = self.client.get_order_details(buy_id)
 
-        total_profit = float(sell_trade.get('dealFunds')) -\
+        total_profit = float(sell_trade.get('dealFunds')) - \
                        float(sell_trade.get('fee')) - \
                        float(buy_trade.get('dealFunds')) - \
                        float(buy_trade.get('fee'))
@@ -202,14 +222,13 @@ class MarketAction(Thread):
                     trade_amount = order_data.get('dealSize')
                     trade_amount = self.round_trade_amount(trade_amount, self.quoteIncrement)
             else:  # if is not bought make trade amount empty string
-                    trade_amount = ''
+                trade_amount = ''
         except Exception as e:
             self.buy_order_id = ''
             self.trade_amount = '0'
             message = f'Exception in loading Trade info from CSV for {self.symbol}: {e}'
             if '400100' not in str(e):  # if different error than: 'order not exist'
                 print(message)
-                logging.warning(message)
         else:
             if trade_amount:
                 self.buy_order_id = coin.bought_id
@@ -222,12 +241,10 @@ class MarketAction(Thread):
             self.backtest_buy_time = self.stream.data.DateTime.iloc[-1]
 
         if side == 'sell':
-
             sell_price = self.stream.data.Close.iloc[-1]
-            relative_profit_perc = (sell_price/self.backtest_buy_price - 1.002)*100
+            relative_profit_perc = (sell_price / self.backtest_buy_price - 1.002) * 100
             MarketAction.backtest_profit += relative_profit_perc
             # print(self.symbol, relative_profit_perc)
-
 
             data_kwargs = {'symbol': self.symbol,
                            'buy_time': self.backtest_buy_time,
@@ -295,7 +312,6 @@ class MarketAction(Thread):
             else:
                 balance += float(data.get('balance'))
         message = f'Total Balance is {balance}'
-        logging.info(message)
         return balance
 
     @classmethod
