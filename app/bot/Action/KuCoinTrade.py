@@ -1,5 +1,7 @@
 import time
 from decimal import Decimal
+import pandas as pd
+import numpy as np
 
 from threading import Thread
 
@@ -41,6 +43,7 @@ class MarketAction(Thread):
         self.live_trade = config['mode'] == 'live'
         self.backtest = config['mode'] == 'backtest'
         self.stop = False
+        self.indicator = Indicator(self.stream.data, self.buy_order_id)
 
     def run(self):
 
@@ -51,11 +54,10 @@ class MarketAction(Thread):
             while not self.stop:
                 if self.stream.check_for_action:
                     # print(f'Action -> Checking for action! {self.symbol}')
-                    if self.indicator_buy() and self.allow_trade and \
-                            not self.indicator_sell() and not self.buy_order_id:
+                    if self.indicator.buy() and self.allow_trade:
                         self.create_order('buy', funds=self.funds)
 
-                    elif self.indicator_sell() and self.buy_order_id:
+                    elif self.indicator.sell():
                         self.create_order('sell', size=self.trade_amount)
 
                     self.stream.check_for_action = False
@@ -66,61 +68,16 @@ class MarketAction(Thread):
             while not self.stop:
                 if self.stream.check_for_action:
                     # print(f'Action -> Checking for action! {self.symbol}')
-                    if self.indicator_buy() and self.allow_trade and \
-                            not self.indicator_sell() and not self.buy_order_id:
+                    if self.indicator.buy() and self.allow_trade:
                         self.backtest_create_order('buy', funds=self.funds)
 
-                    elif self.indicator_sell() and self.buy_order_id:
+                    elif self.indicator.sell():
                         self.backtest_create_order('sell', funds=self.funds)
                         print('backtest_profit:', MarketAction.backtest_profit)
 
                     self.stream.check_for_action = False
 
         print('Action Thread Stopped!')
-
-    def indicator_buy(self):
-        good_trend = self.trend_v1()  # check if trend is up or flat
-        up_candles = self.stream.data['HA_Close'] > self.stream.data['HA_Open']
-
-        try:  # see if Trades are available
-            indicator = (self.stream.data['Volume'] > self.coef * self.stream.data['EMA60_Volume']) * (
-                    self.stream.data['Trades'] > self.coef * self.stream.data['EMA60_Trades'])
-        except Exception:
-            indicator = self.stream.data['Volume'] > self.coef * self.stream.data['EMA60_Volume']
-
-        indicator *= good_trend * up_candles
-        buy = indicator.iloc[-self.window:].sum() == self.window
-        #         indicator = indicator.rolling(window=window).apply(lambda x: np.sum(x) >= window).fillna(0)
-        return buy
-
-    def trend_v1(self):
-        good_trend = self.stream.data['EMA50'].rolling(window=60).apply(
-            lambda x: (x[-1] - x[0]) / x[0] > -10e-3).fillna(0)
-        return good_trend
-
-    def trend_v2(self):
-        EMA5 = self.stream.data['EMA5']
-        EMA9 = self.stream.data['EMA9']
-        EMA12 = self.stream.data['EMA12']
-        good_trend = EMA12 < EMA9 < EMA5
-        return good_trend
-
-    def indicator_sell(self):
-        lose_momentum = self.lose_momentum_v2()
-        if lose_momentum:
-            return True
-        return False
-
-    def lose_momentum_v1(self):
-        lose_momentum = self.stream.data['HA_Close_slow'].iloc[-1] < self.stream.data['HA_Open_slow'].iloc[-1]
-        return lose_momentum
-
-    def lose_momentum_v2(self):
-        EMA5 = self.stream.data['EMA5'].iloc[-1]
-        EMA9 = self.stream.data['EMA9'].iloc[-1]
-        EMA12 = self.stream.data['EMA12'].iloc[-1]
-        lose_momentum = EMA12 > EMA9 and EMA12 > EMA5
-        return lose_momentum
 
     def create_order(self, side, **kwargs):
         try:
@@ -334,3 +291,108 @@ class MarketAction(Thread):
             cls.start_balance = cls.calculate_total_balance()
             cls.config = config
             print('MarketAction Class Variables Successfully Initialized!')
+
+
+class Indicator():
+    def __init__(self, data, is_bought):
+        self.atr_period = 14
+        self.ma_len = 5
+        self.ma_source = 'Close'
+        self.atr_coef = 3
+
+        self.is_bought = is_bought
+        self.stop_price = -np.inf
+        self.high_val = -np.inf
+        self.data = data
+
+    def atr_ema(self):
+        diff1 = self.data['High'] - self.data['Low']
+        diff2 = self.data['High'] - self.data['Low'].shift(periods=1)
+        diff3 = self.data['Close'] - self.data['Low'].shift(periods=1)
+
+        ATR = pd.DataFrame({'diff1': diff1, 'diff2': diff2, "diff3": diff3})
+        ATR['max'] = ATR.max(axis=1)
+        ema = ATR.ta.ema(close='max', length=self.atr_period)
+        return ema
+
+    def buy(self):
+        self.data.loc[:, 'MA'] = self.data.ta.sma(close=self.ma_source, length=self.ma_len)
+        self.data.loc[:, 'ATR'] = self.atr_ema()
+        self.data.loc[:, 'buy_price'] = self.data['MA'].shift(periods=1) + self.data['ATR']
+
+        if self.is_bought:  # TODO: Move 'if' outside buy function
+            self.high_val = max(self.high_val, self.data['Close'].iloc[-1])
+            self.stop_price = self.high_val - self.atr_coef * self.data['ATR'].iloc[-1]
+        else:
+            self.stop_price = -np.inf
+            self.high_val = -np.inf
+
+        ######## Buy ############
+        self.data.loc[:, 'ind_buy'] = self.data['Close'] > self.data['buy_price']
+
+        ####### EMA ###########
+        self.data.loc[:, 'EMA20'] = self.data.ta.sma(close='Close', length=20)
+        self.data.loc[:, 'EMA50'] = self.data.ta.sma(close='Close', length=50)
+        ind_buy_ema = self.data['EMA50'] < self.data['EMA20'] + self.data['ATR']
+        self.data.loc[:, 'ind_buy'] *= ind_buy_ema
+
+        # ########## VOLUME ##########
+        # self.data.loc[:, 'Vol_SMA24'] = self.data.ta.sma(close='Volume', length=24)
+        # ind_buy_vol = self.data['Volume'] > 1.5 * self.data['Vol_SMA24']
+        # self.data.loc[:, 'ind_buy'] *= ind_buy_ema
+
+        buy = self.data.loc[:, 'ind_buy'].iloc[-1]
+        if buy and not self.is_bought:
+            return True
+        return False
+
+    def sell(self):
+        buy_price = self.data['buy_price'].iloc[-1]
+        sell = self.stop_price > self.data['Low'].iloc[-1] and buy_price > self.data['Low'].iloc[-1]
+        if sell and self.is_bought:
+            return True
+        return False
+
+# def indicator_buy(self):
+#     good_trend = self.trend_v1()  # check if trend is up or flat
+#     up_candles = self.stream.data['HA_Close'] > self.stream.data['HA_Open']
+#
+#     try:  # see if Trades are available
+#         indicator = (self.stream.data['Volume'] > self.coef * self.stream.data['EMA60_Volume']) * (
+#                 self.stream.data['Trades'] > self.coef * self.stream.data['EMA60_Trades'])
+#     except Exception:
+#         indicator = self.stream.data['Volume'] > self.coef * self.stream.data['EMA60_Volume']
+#
+#     indicator *= good_trend * up_candles
+#     buy = indicator.iloc[-self.window:].sum() == self.window
+#     #         indicator = indicator.rolling(window=window).apply(lambda x: np.sum(x) >= window).fillna(0)
+#     return buy
+#
+# def trend_v1(self):
+#     good_trend = self.stream.data['EMA50'].rolling(window=60).apply(
+#         lambda x: (x[-1] - x[0]) / x[0] > -10e-3).fillna(0)
+#     return good_trend
+#
+# def trend_v2(self):
+#     EMA5 = self.stream.data['EMA5']
+#     EMA9 = self.stream.data['EMA9']
+#     EMA12 = self.stream.data['EMA12']
+#     good_trend = EMA12 < EMA9 < EMA5
+#     return good_trend
+#
+# def indicator_sell(self):
+#     lose_momentum = self.lose_momentum_v2()
+#     if lose_momentum:
+#         return True
+#     return False
+#
+# def lose_momentum_v1(self):
+#     lose_momentum = self.stream.data['HA_Close_slow'].iloc[-1] < self.stream.data['HA_Open_slow'].iloc[-1]
+#     return lose_momentum
+#
+# def lose_momentum_v2(self):
+#         EMA5 = self.stream.data['EMA5'].iloc[-1]
+#         EMA9 = self.stream.data['EMA9'].iloc[-1]
+#         EMA12 = self.stream.data['EMA12'].iloc[-1]
+#         lose_momentum = EMA12 > EMA9 and EMA12 > EMA5
+#         return lose_momentum
