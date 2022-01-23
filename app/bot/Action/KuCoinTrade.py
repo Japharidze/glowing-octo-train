@@ -43,9 +43,10 @@ class MarketAction(Thread):
         self.live_trade = config['mode'] == 'live'
         self.backtest = config['mode'] == 'backtest'
         self.stop = False
-        self.indicator = Indicator(self.stream.data, self.buy_order_id)
+        self.indicator = ''
 
     def run(self):
+        self.indicator = Indicator(self.stream.data, self.buy_order_id)
 
         if self.live_trade:
             print(f'Trading in Live for {self.symbol}')
@@ -91,10 +92,12 @@ class MarketAction(Thread):
                 if self.stop_loss_order_id:  # Check if stop loss was executed
                     stop_loss_data = self.client.get_order_details(self.stop_loss_order_id)
                     if not stop_loss_data.get('isActive'):  # Check if stop loss was executed
+                        print(f'Stop Loss Executed for {self.symbol}')
                         stop_executed = True
-                        order_id = stop_loss_data.get('orderId')  # Set order Id for saving correct trade in database
+                        order_id = stop_loss_data.get('id')  # Set order Id for saving correct trade in database
 
                 if not stop_executed:  # Create sell order and cancel stop loss
+                    print(f'Stop Loss DID NOT Execute for {self.symbol}')
                     order_data = self.client.create_market_order(self.symbol, side, **kwargs)
                     order_id = order_data.get('orderId')
                     print(f'{side} {self.symbol}, order_id: {order_id}')
@@ -143,15 +146,18 @@ class MarketAction(Thread):
                 self.trade_amount = '0'
                 self.update_trade_allowance()
 
-    def create_stop_loss(self, data):
+    def create_stop_loss(self, data, coef=0.96):
+        stop_price = float(data.get('dealFunds')) / float(data.get('dealSize')) * coef
         kwargs = {'symbol': self.symbol,
                   'side': 'sell',
                   'funds': self.trade_amount,
-                  'price': data.get('price') * 0.96
+                  'stopPrice': stop_price,
                   }
 
         order_data = self.client.create_market_stop_order(**kwargs)
-        return order_data.get('order_id')
+        stop_order_id = order_data.get('orderId')
+        self.stop_loss_order_id = stop_order_id
+        return stop_order_id
 
     def calculate_pair_profit(self, buy_id, sell_id):
         """ Calculates and returns relative profit in percentage"""
@@ -352,6 +358,7 @@ class Indicator():
         if sell and self.is_bought:
             return True
         return False
+
 
 # def indicator_buy(self):
 #     good_trend = self.trend_v1()  # check if trend is up or flat
