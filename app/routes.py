@@ -5,7 +5,7 @@ from flask import current_app as app
 
 from .bot import run_bot
 from .models import Coin, TradePair, Trade
-from .bot.crud import insert_coin, update_coin, insert_tp, insert_trade, clear_db, get_trades
+from .bot.crud import insert_coin, update_coin, clear_coins_bought_id, insert_trade, clear_db, get_trades
 
 @app.route('/')
 def index():
@@ -85,6 +85,7 @@ def sell():
     config = KucoinConfig()
     MarketAction.init_class_variables(config)
     MarketAction.sell_everything()
+    clear_coins_bought_id()
     return make_response('Sold', 200)
 
 

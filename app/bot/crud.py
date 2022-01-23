@@ -40,9 +40,17 @@ def update_coin(trade_id: str, kucoin_name: str):
         s.commit()
 
 def clear_db():
-    db.session.query(Trade).delete()
     db.session.query(TradePair).delete()
+    db.session.query(Trade).delete()
     db.session.commit()
+    with Session() as s:
+        s.query(Coin).update({'bought_id': ''})
+        s.commit()
+
+def clear_coins_bought_id():
+    with Session() as s:
+        s.query(Coin).update({'bought_id': ''})
+        s.commit()
 
 def backtest_insert_tp(**kwargs):
     with Session() as s:
