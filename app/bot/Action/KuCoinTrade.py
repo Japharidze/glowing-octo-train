@@ -54,8 +54,12 @@ class MarketAction(Thread):
 
             while not self.stop:
                 if self.stream.check_for_action:
+                    if self.buy_order_id:
+                        print(self.symbol, ': MarketAction buy_order_id', self.buy_order_id, 'Indicator:', self.indicator.is_bought)
+
                     # print(f'Action -> Checking for action! {self.symbol}')
                     if self.indicator.buy() and self.allow_trade:
+
                         self.create_order('buy', funds=self.funds)
 
                     elif self.indicator.sell():
