@@ -341,10 +341,10 @@ class Indicator():
         self.data.loc[:, 'ind_buy'] = self.data['Close'] > self.data['buy_price']
 
         ####### EMA ###########
-        self.data.loc[:, 'EMA20'] = self.data.ta.sma(close='Close', length=20)
-        self.data.loc[:, 'EMA50'] = self.data.ta.sma(close='Close', length=50)
-        ind_buy_ema = self.data['EMA50'] < self.data['EMA20'] + self.data['ATR']
-        self.data.loc[:, 'ind_buy'] *= ind_buy_ema
+        # self.data.loc[:, 'EMA20'] = self.data.ta.sma(close='Close', length=20)
+        # self.data.loc[:, 'EMA50'] = self.data.ta.sma(close='Close', length=50)
+        # ind_buy_ema = self.data['EMA50'] < self.data['EMA20'] + self.data['ATR']
+        # self.data.loc[:, 'ind_buy'] *= ind_buy_ema
 
         # ########## VOLUME ##########
         # self.data.loc[:, 'Vol_SMA24'] = self.data.ta.sma(close='Volume', length=24)
@@ -352,6 +352,12 @@ class Indicator():
         # self.data.loc[:, 'ind_buy'] *= ind_buy_ema
 
         buy = self.data.loc[:, 'ind_buy'].iloc[-1]
+
+        b_t1 = (self.data['Close'] > self.data['buy_price']).iloc[-1]
+        print(f"""Ping, is_bought -{self.is_bought}-, Close>Buy -{b_t1}-, buy {buy}, 
+            Buy Price {self.data['buy_price'].iloc[-1]},
+            Close {self.data['Close'].iloc[-1]}""")
+
         if buy and not self.is_bought:
             return True
         return False

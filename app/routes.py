@@ -80,7 +80,7 @@ def test_buy_sell():
 
 
 @app.route('/sell_all')
-def sell():
+def sell_all():
     """Exchange all coins to USDT"""
     config = KucoinConfig()
     MarketAction.init_class_variables(config)
@@ -96,3 +96,51 @@ def return_balance():
     MarketAction.init_class_variables(config)
     balance = MarketAction.calculate_total_balance()
     return make_response(f'Total Balance in USDT: {balance}', 200)
+
+
+
+####################  Vision ###################
+
+class Coin(dict):
+    def __init__(self, name, bought_id='', trade_amount='0'):
+        self.kucoin_name = name
+        self.bought_id = bought_id
+        self.trade_amount = trade_amount
+        self.allow_trade = True
+
+@app.route('/buy_coin')
+def buy():
+    config = KucoinConfig()
+    config['mode'] = 'live'
+    coin = Coin(request.args.get('kucoin_name'))
+
+    actions = MarketAction('', config, coin)
+    actions.create_order('buy', funds=10)
+
+    data = actions.buy_order_id + ',' + str(actions.trade_amount)
+    return make_response(data, 200)
+
+
+@app.route('/sell_coin')
+def sell():
+    config = KucoinConfig()
+    config['mode'] = 'live'
+
+    coin = Coin(request.args.get('kucoin_name'),
+                request.args.get('bought_id'),
+                request.args.get('trade_amount'),
+                )
+
+    actions = MarketAction('', config, coin)
+
+    print(coin.trade_amount, coin.bought_id)
+
+    try:
+        actions.buy_order_id = coin.bought_id
+        actions.trade_amount = coin.trade_amount
+        actions.create_order('sell', size=actions.trade_amount)
+        return make_response('true', 200)
+    except:
+        return make_response('false', 200)
+
+
