@@ -6,6 +6,7 @@ from flask import current_app as app
 from .bot import run_bot
 from .models import Coin, TradePair, Trade
 from .bot.crud import insert_coin, update_coin, clear_coins_bought_id, insert_trade, clear_db, get_trades
+from .bot.helper import CoinHelper
 
 @app.route('/')
 def index():
@@ -101,18 +102,11 @@ def return_balance():
 
 ####################  Vision ###################
 
-class Coin(dict):
-    def __init__(self, name, bought_id='', trade_amount='0'):
-        self.kucoin_name = name
-        self.bought_id = bought_id
-        self.trade_amount = trade_amount
-        self.allow_trade = True
-
 @app.route('/buy_coin')
 def buy():
     config = KucoinConfig()
     config['mode'] = 'live'
-    coin = Coin(request.args.get('kucoin_name'))
+    coin = CoinHelper(request.args.get('kucoin_name'))
 
     actions = MarketAction('', config, coin)
     actions.create_order('buy', funds=10)
@@ -126,7 +120,7 @@ def sell():
     config = KucoinConfig()
     config['mode'] = 'live'
 
-    coin = Coin(request.args.get('kucoin_name'),
+    coin = CoinHelper(request.args.get('kucoin_name'),
                 request.args.get('bought_id'),
                 request.args.get('trade_amount'),
                 )
