@@ -93,11 +93,11 @@ def sell_all():
 @app.route('/get_balance')
 def return_balance():
     """Return Total Balance of the Trade Account in USDT"""
-    config = KucoinConfig()
-    MarketAction.init_class_variables(config)
+    if not MarketAction.user:
+        config = KucoinConfig()
+        MarketAction.init_class_variables(config)
     balance = MarketAction.calculate_total_balance()
-    return make_response(f'Total Balance in USDT: {balance}', 200)
-
+    return make_response(str(balance), 200)
 
 
 ####################  Vision ###################
@@ -136,5 +136,3 @@ def sell():
         return make_response('true', 200)
     except:
         return make_response('false', 200)
-
-
