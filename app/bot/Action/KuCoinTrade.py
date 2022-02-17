@@ -75,6 +75,9 @@ class MarketAction(Thread):
             print('Back testing bot')
             while not self.stop:
                 if self.stream.check_for_action:
+                    self.indicator.data = self.stream.data
+                    self.indicator.is_bought = self.buy_order_id  # update buy status
+
                     # print(f'Action -> Checking for action! {self.symbol}')
                     if self.indicator.buy() and self.allow_trade:
                         self.backtest_create_order('buy', funds=self.funds)
@@ -205,12 +208,16 @@ class MarketAction(Thread):
                 self.trade_amount = trade_amount
 
     def backtest_create_order(self, side, **kwargs):
+        print('backtest_create_order')
         if side == 'buy':
+            print('--------------- buy')
             self.buy_order_id = 'buy_id'
             self.backtest_buy_price = self.stream.data.Close.iloc[-1]
-            self.backtest_buy_time = self.stream.data.DateTime.iloc[-1]
+            self.backtest_buy_time = self.stream.data.index[-1]
 
         if side == 'sell':
+            print('--------------- sell')
+
             sell_price = self.stream.data.Close.iloc[-1]
             relative_profit_perc = (sell_price / self.backtest_buy_price - 1.002) * 100
             MarketAction.backtest_profit += relative_profit_perc
@@ -218,7 +225,7 @@ class MarketAction(Thread):
 
             data_kwargs = {'symbol': self.symbol,
                            'buy_time': self.backtest_buy_time,
-                           'sell_time': self.stream.data.DateTime.iloc[-1],
+                           'sell_time':self.stream.data.index[-1],
                            'profit': relative_profit_perc,
                            }
             backtest_insert_tp(**data_kwargs)
@@ -342,14 +349,15 @@ class Indicator:
 
         ######## Buy ############
         self.data.loc[:, 'ind_buy'] = self.data['Close'] > self.data['buy_price']
+        # print((self.data['Close'] > self.data['buy_price']).iloc[0], self.data['Close'].iloc[0], self.data['buy_price'].iloc[0])
 
-        ###### EMA ###########
+        ##### EMA ###########
         self.data.loc[:, 'EMA20'] = self.data.ta.sma(close='Close', length=20)
         self.data.loc[:, 'EMA50'] = self.data.ta.sma(close='Close', length=50)
         ind_buy_ema = self.data['EMA50'] < self.data['EMA20'] + self.data['ATR']
         self.data.loc[:, 'ind_buy'] *= ind_buy_ema
 
-        ########## VOLUME ##########
+        ######### VOLUME ##########
         self.data.loc[:, 'Vol_SMA24'] = self.data.ta.sma(close='Volume', length=24)
         ind_buy_vol = self.data['Volume'] > 1.5 * self.data['Vol_SMA24']
         self.data.loc[:, 'ind_buy'] *= ind_buy_vol

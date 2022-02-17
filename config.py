@@ -10,6 +10,7 @@ class Config(object):
         or 'sqlite:///bot/database.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+
 class KucoinConfig(object):
     api_key = os.environ.get('API_KEY')
     api_secret = os.environ.get('API_SECRET')
@@ -18,8 +19,8 @@ class KucoinConfig(object):
     coef = 1.5
     window = 3
     funds = 10
-    interval_fast = '1min'
-    interval_slow = '15min'
+    interval_fast = '1m'
+    interval_slow = '15m'
     mode = 'live'
 
     def __getitem__(self, param):

@@ -5,16 +5,24 @@ from flask import current_app as app
 
 from .bot import run_bot
 from .models import Coin, TradePair, Trade
-from .bot.crud import insert_coin, update_coin, clear_coins_bought_id, insert_trade, clear_db, get_trades
+from .bot.crud import clear_db, get_trades, clear_coins, get_backtest_trades
+from .bot.crud import insert_coin, update_coin, clear_coins_bought_id, insert_trade
 from .bot.helper import CoinHelper
+
 
 @app.route('/')
 def index():
     return make_response('; '.join([str(x) for x in Coin.query.all()]), 200)
 
+
 @app.route('/list_trades')
 def list_trades():
     return make_response('; '.join([str(x) for x in get_trades()]))
+
+
+@app.route('/list_backtest_trades')
+def list_backtest_trades():
+    return make_response('; '.join([str(x) for x in get_backtest_trades()]))
 
 
 @app.route('/insert_coins')
@@ -24,14 +32,17 @@ def insert_coins():
         insert_coin(**coin)
     return make_response('SDA', 200)
 
+
 @app.route('/test_update')
 def update_c():
-    update_coin('','ADA-USDT')
+    update_coin('', 'ADA-USDT')
     return make_response('SDA', 200)
+
 
 @app.route('/list_tps')
 def list_tps():
     return make_response('; '.join([str(x) for x in TradePair.query.all()]), 200)
+
 
 @app.route('/insert_tp')
 def insert_pt():
@@ -40,19 +51,20 @@ def insert_pt():
         insert_trade(**coin)
     return make_response('SDA', 200)
 
+
 @app.route('/init_bot')
 def init_bot():
     t1 = Thread(target=run_bot, daemon=True)
     t1.start()
     return make_response('Bot started successfuly!', 200)
 
+
 ############# TEST ############
-
-
 @app.route('/backtest')
 def backtest_bot():
     run_bot(mode='backtest')
     return make_response('Backtest Run !', 200)
+
 
 @app.route('/clear_trades_from_db')
 def clear_trades():
@@ -60,9 +72,18 @@ def clear_trades():
     return make_response('; '.join([str(x) for x in Trade.query.all()]), 200)
 
 
+@app.route('/clear_database')
+def clear_database():
+    clear_coins()
+    return make_response('; '.join([str(x) for x in Coin.query.all()]), 200)
+
+
+
+
 from .bot.Action.KuCoinTrade import MarketAction
 from config import KucoinConfig
 import time
+
 
 @app.route('/test_buy_sell')
 def test_buy_sell():
@@ -121,9 +142,9 @@ def sell():
     config['mode'] = 'live'
 
     coin = CoinHelper(request.args.get('kucoin_name'),
-                request.args.get('bought_id'),
-                request.args.get('trade_amount'),
-                )
+                      request.args.get('bought_id'),
+                      request.args.get('trade_amount'),
+                      )
 
     actions = MarketAction('', config, coin)
 
