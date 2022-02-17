@@ -306,7 +306,7 @@ class MarketAction(Thread):
             print('MarketAction Class Variables Successfully Initialized!')
 
 
-class Indicator():
+class Indicator:
     def __init__(self, data, is_bought):
         self.atr_period = 14
         self.ma_len = 5
