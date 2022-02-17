@@ -19,6 +19,7 @@ def symbols_from_list(config, list_path, quote='USDT'):
 
     return symbol_list, symbol_data
 
+
 def load_kucoin_binance_symbols(config):
     df = pd.read_csv(config['symbol_csv_path'])
     df.drop_duplicates(inplace=True)

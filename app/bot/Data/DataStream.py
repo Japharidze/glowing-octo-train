@@ -15,8 +15,8 @@ class BinanceDataStream(Thread):
     def __init__(self, config, coin):
         Thread.__init__(self)
         self.symbol = coin.binance_name
-        self.interval_fast = config['interval_fast'][:-2]
-        self.interval_slow = config['interval_slow'][:-2]
+        self.interval_fast = config['interval_fast']
+        self.interval_slow = config['interval_slow']
         self.api_key = config['api_key']
         self.api_secret = config['api_secret']
         self.api_passphrase = config['api_passphrase']
@@ -70,7 +70,7 @@ class BinanceDataStream(Thread):
 
         elif self.backtest:
             # get historical data for period, feed one by one\
-            self.initial_collect_data(14)
+            self.initial_collect_data(1)
             whole_data = self.data.copy()
             print(self.symbol, 'Total data points in whole_data: ', len(whole_data))
             for i in range(200, len(whole_data)):
@@ -82,10 +82,11 @@ class BinanceDataStream(Thread):
             print(self.symbol, 'Finished simulation')
 
     def binance_historical_data(self, test_days=0):
+        print('binance_historical_data')
         client = Client('', '', tld='com')
 
         if not test_days:
-            fromdate = str(datetime.utcnow() - timedelta(hours=3))
+            fromdate = str(datetime.utcnow() - timedelta(days=2))
         else:
             fromdate = str(datetime.utcnow() - timedelta(days=test_days))
 
@@ -100,64 +101,73 @@ class BinanceDataStream(Thread):
         df = df.reindex(columns=column_names)
         self.data = df.astype(float, errors='ignore').iloc[:-1]
 
-    def HA_slow(self):
-        window = int(int(self.interval_slow[:-1]) / int(self.interval_fast[:-1]))
+    # def HA_slow(self):
+    #     print('HA_slow')
+    #
+    #     window = int(int(self.interval_slow[:-1]) / int(self.interval_fast[:-1]))
+    #
+    #     self.data['HA_Close_slow'] = (self.data['Open_slow'] + self.data['High_slow'] + self.data['Low_slow'] +
+    #                                   self.data['Close_slow']) / 4
+    #     idx = self.data.index.name
+    #
+    #     self.data.reset_index(inplace=True)
+    #
+    #     for i in range(0, len(self.data)):
+    #         if i < 2 * window:
+    #             self.data.at[i, 'HA_Open_slow'] = (self.data.at[i, 'Open_slow'] + self.data.at[i, 'Close_slow']) / 2
+    #         else:
+    #             self.data.at[i, 'HA_Open_slow'] = (self.data.at[i - window, 'HA_Open_slow'] + self.data.at[
+    #                 i - window, 'HA_Close_slow']) / 2
+    #     if idx:
+    #         self.data.set_index(idx, inplace=True)
+    #
+    #     self.data['HA_High_slow'] = self.data[['HA_Open_slow', 'HA_Close_slow', 'High_slow']].max(axis=1)
+    #     self.data['HA_Low_slow'] = self.data[['HA_Open_slow', 'HA_Close_slow', 'Low_slow']].min(axis=1)
+    #     return self.data
 
-        self.data['HA_Close_slow'] = (self.data['Open_slow'] + self.data['High_slow'] + self.data['Low_slow'] +
-                                      self.data['Close_slow']) / 4
-        idx = self.data.index.name
+    # def HA_fast(self):
+    #     print('HA_fast')
+    #
+    #     self.data['HA_Close'] = (self.data['Open'] + self.data['High'] + self.data['Low'] + self.data['Close']) / 4
+    #     idx = self.data.index.name
+    #     self.data.reset_index(inplace=True)
+    #
+    #     for i in range(0, len(self.data)):
+    #         if i == 0:
+    #             self.data.at[i, 'HA_Open'] = (self.data.at[i, 'Open'] + self.data.at[i, 'Close']) / 2
+    #         else:
+    #             self.data.at[i, 'HA_Open'] = (self.data.at[i - 1, 'HA_Open'] + self.data.at[i - 1, 'HA_Close']) / 2
+    #     if idx:
+    #         self.data.set_index(idx, inplace=True)
+    #
+    #     self.data['HA_High'] = self.data[['HA_Open', 'HA_Close', 'High']].max(axis=1)
+    #     self.data['HA_Low'] = self.data[['HA_Open', 'HA_Close', 'Low']].min(axis=1)
+    #     return self.data
 
-        self.data.reset_index(inplace=True)
-
-        for i in range(0, len(self.data)):
-            if i < 2 * window:
-                self.data.at[i, 'HA_Open_slow'] = (self.data.at[i, 'Open_slow'] + self.data.at[i, 'Close_slow']) / 2
-            else:
-                self.data.at[i, 'HA_Open_slow'] = (self.data.at[i - window, 'HA_Open_slow'] + self.data.at[
-                    i - window, 'HA_Close_slow']) / 2
-        if idx:
-            self.data.set_index(idx, inplace=True)
-
-        self.data['HA_High_slow'] = self.data[['HA_Open_slow', 'HA_Close_slow', 'High_slow']].max(axis=1)
-        self.data['HA_Low_slow'] = self.data[['HA_Open_slow', 'HA_Close_slow', 'Low_slow']].min(axis=1)
-        return self.data
-
-    def HA_fast(self):
-        self.data['HA_Close'] = (self.data['Open'] + self.data['High'] + self.data['Low'] + self.data['Close']) / 4
-        idx = self.data.index.name
-        self.data.reset_index(inplace=True)
-
-        for i in range(0, len(self.data)):
-            if i == 0:
-                self.data.at[i, 'HA_Open'] = (self.data.at[i, 'Open'] + self.data.at[i, 'Close']) / 2
-            else:
-                self.data.at[i, 'HA_Open'] = (self.data.at[i - 1, 'HA_Open'] + self.data.at[i - 1, 'HA_Close']) / 2
-        if idx:
-            self.data.set_index(idx, inplace=True)
-
-        self.data['HA_High'] = self.data[['HA_Open', 'HA_Close', 'High']].max(axis=1)
-        self.data['HA_Low'] = self.data[['HA_Open', 'HA_Close', 'Low']].min(axis=1)
-        return self.data
-
-    def add_indicators(self):
-        self.data['EMA5'] = self.data.ta.ema(close='Close', length=5)
-        self.data['EMA9'] = self.data.ta.ema(close='Close', length=9)
-        self.data['EMA10'] = self.data.ta.ema(close='Close', length=10)
-        self.data['EMA12'] = self.data.ta.ema(close='Close', length=12)
-        self.data['EMA50'] = self.data.ta.ema(close='Close', length=50)
-        self.data['EMA10_Volume'] = self.data.ta.ema(close='Volume', length=10)
-        self.data['EMA60_Volume'] = self.data.ta.ema(close='Volume', length=60)
-        self.data['EMA10_Trades'] = self.data.ta.ema(close='Trades', length=10)
-        self.data['EMA60_Trades'] = self.data.ta.ema(close='Trades', length=60)
+    # def add_indicators(self):
+    #     print('add_indicators')
+    #     self.data['EMA5'] = self.data.ta.ema(close='Close', length=5)
+    #     self.data['EMA9'] = self.data.ta.ema(close='Close', length=9)
+    #     self.data['EMA10'] = self.data.ta.ema(close='Close', length=10)
+    #     self.data['EMA12'] = self.data.ta.ema(close='Close', length=12)
+    #     self.data['EMA50'] = self.data.ta.ema(close='Close', length=50)
+    #     self.data['EMA10_Volume'] = self.data.ta.ema(close='Volume', length=10)
+    #     self.data['EMA60_Volume'] = self.data.ta.ema(close='Volume', length=60)
+    #     self.data['EMA10_Trades'] = self.data.ta.ema(close='Trades', length=10)
+    #     self.data['EMA60_Trades'] = self.data.ta.ema(close='Trades', length=60)
 
     def initial_collect_data(self, days=0):
+        print('initial_collect_data')
+
         self.binance_historical_data(days)  # get historical data when starting the bot not to wait stream
-        self.add_indicators()
-        self.add_slow_data()
-        self.HA_fast()
-        self.HA_slow()
+        # self.add_indicators()
+        # self.add_slow_data()
+        # self.HA_fast()
+        # self.HA_slow()
 
     def record_data(self, message):
+        print('record_data')
+
         # print('Record Data!')
         date_time = datetime.fromtimestamp(message['t'] // 1e3, tz=timezone.utc).replace(second=0)
         row = pd.Series({
@@ -171,19 +181,21 @@ class BinanceDataStream(Thread):
 
         self.data = self.data.append(row)
         self.data = self.data.iloc[-200:]
-        self.add_indicators()
-        self.add_slow_data()
-        self.HA_fast()
-        self.HA_slow()
+        # self.add_indicators()
+        # self.add_slow_data()
+        # self.HA_fast()
+        # self.HA_slow()
 
-    def add_slow_data(self):
-        try:
-            window = int(int(self.interval_slow[:-1]) / int(self.interval_fast[:-1]))
-
-            self.data['Open_slow'] = self.data.Open
-            shift_data = self.data.shift(1 - window).fillna(method='ffill')
-            self.data['Close_slow'] = shift_data.Close
-            self.data['High_slow'] = shift_data.High.rolling(window=window).apply(lambda x: max(x))
-            self.data['Low_slow'] = shift_data.Low.rolling(window=window).apply(lambda x: min(x))
-        except Exception as e:
-            print(e)
+    # def add_slow_data(self):
+    #     print('add_slow_data')
+    #
+    #     try:
+    #         window = int(int(self.interval_slow[:-1]) / int(self.interval_fast[:-1]))
+    #
+    #         self.data['Open_slow'] = self.data.Open
+    #         shift_data = self.data.shift(1 - window).fillna(method='ffill')
+    #         self.data['Close_slow'] = shift_data.Close
+    #         self.data['High_slow'] = shift_data.High.rolling(window=window).apply(lambda x: max(x))
+    #         self.data['Low_slow'] = shift_data.Low.rolling(window=window).apply(lambda x: min(x))
+    #     except Exception as e:
+    #         print(e)
